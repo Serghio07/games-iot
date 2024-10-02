@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard del Juego</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css">
+</head>
+<body>
+    <div class="ui container">
+        <h2 class="ui header">Dashboard del Juego de Autos</h2>
+
+        <table class="ui celled table">
+            <thead>
+                <tr>
+                    <th>Nombre del Jugador</th>
+                    <th>Puntos Promedio</th>
+                    <th>Tiempo Promedio Jugado (segundos)</th>
+                    <th>Máxima Distancia Recorrida</th>
+                    <th>Total de Partidas Jugadas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in stats %}
+                <tr>
+                    <td>{{ stat[0] }}</td>
+                    <td>{{ stat[1] | round(2) }}</td>
+                    <td>{{ stat[2] | round(2) }}</td>
+                    <td>{{ stat[3] }}</td>
+                    <td>{{ stat[4] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
