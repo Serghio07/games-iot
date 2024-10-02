@@ -1,6 +1,7 @@
 import tkinter as tk
 import random
 import time
+import mysql.connector
 
 # Configuración del juego
 ANCHO = 400
@@ -9,14 +10,25 @@ VELOCIDAD_OBSTACULOS_INICIAL = 5
 MOVIMIENTO_AUTO = 20
 TAMAÑO_AUTO = 50
 TAMAÑO_OBSTACULO = 50
-NUM_OBSTACULOS = 3  # Aumentamos el número de obstáculos
+NUM_OBSTACULOS = 3
 
+# Conexión a la base de datos
+def connect_db():
+    conn = mysql.connector.connect(
+        host='localhost',
+        user='root',
+        password='',
+        database='juego'
+    )
+    return conn
+
+# Clase del juego
 class JuegoAutos:
-    def __init__(self, root, usuario, usuarios, indice_actual, resultados):
+    def __init__(self, root, usuario_id, usuario_nombre, edad, resultados):
         self.root = root
-        self.usuario = usuario
-        self.usuarios = usuarios
-        self.indice_actual = indice_actual
+        self.usuario_id = usuario_id
+        self.usuario_nombre = usuario_nombre
+        self.edad = edad
         self.resultados = resultados
         self.canvas = tk.Canvas(root, width=ANCHO, height=ALTO, bg="white")
         self.canvas.pack()
@@ -42,8 +54,10 @@ class JuegoAutos:
         self.actualizar_obstaculos()
         self.actualizar_pantalla()
 
+        # Agregar botones de control táctil
+        self.agregar_botones()
+
     def crear_auto(self):
-        # Posición inicial del auto
         self.auto_x = ANCHO // 2 - TAMAÑO_AUTO // 2
         self.auto_y = ALTO - TAMAÑO_AUTO - 20
         self.auto = self.canvas.create_rectangle(self.auto_x, self.auto_y, 
@@ -51,14 +65,14 @@ class JuegoAutos:
                                                  self.auto_y + TAMAÑO_AUTO, 
                                                  fill="blue")
 
-    def mover_izquierda(self, event):
+    def mover_izquierda(self, event=None):
         if self.auto_x > 0:
             self.auto_x -= MOVIMIENTO_AUTO
             self.movimientos += 1
         self.canvas.coords(self.auto, self.auto_x, self.auto_y, 
                            self.auto_x + TAMAÑO_AUTO, self.auto_y + TAMAÑO_AUTO)
 
-    def mover_derecha(self, event):
+    def mover_derecha(self, event=None):
         if self.auto_x < ANCHO - TAMAÑO_AUTO:
             self.auto_x += MOVIMIENTO_AUTO
             self.movimientos += 1
@@ -95,16 +109,15 @@ class JuegoAutos:
     def actualizar_obstaculos(self):
         if self.jugando:
             self.mover_obstaculos()
-            if random.randint(1, 20) <= NUM_OBSTACULOS:  # Probabilidad de aparición de varios obstáculos
+            if random.randint(1, 20) <= NUM_OBSTACULOS:
                 self.crear_obstaculo()
             self.root.after(100, self.actualizar_obstaculos)
 
     def actualizar_pantalla(self):
         if self.jugando:
-            # Aumentar la dificultad con la distancia recorrida
             self.distancia += self.velocidad_obstaculos
-            if self.distancia % 100 == 0:  # Cada 100 unidades de distancia
-                self.velocidad_obstaculos += 1  # Incrementar velocidad de obstáculos
+            if self.distancia % 100 == 0:
+                self.velocidad_obstaculos += 1
 
             self.mostrar_datos()
             self.root.after(50, self.actualizar_pantalla)
@@ -113,7 +126,6 @@ class JuegoAutos:
             self.mostrar_datos_finales()
 
     def mostrar_datos(self):
-        # Mostrar puntuación y distancia en pantalla
         self.canvas.delete("datos")
         self.canvas.create_text(10, 10, anchor="nw", text=f"Puntos: {self.puntos}", 
                                 fill="black", font=("Arial", 12), tags="datos")
@@ -123,85 +135,164 @@ class JuegoAutos:
                                 fill="black", font=("Arial", 12), tags="datos")
 
     def registrar_resultado(self):
-        # Registrar los resultados del jugador actual
         tiempo_jugado = time.time() - self.tiempo_inicio
-        self.resultados[self.usuario] = {
-            "distancia": self.distancia,
-            "puntos": self.puntos,
-            "tiempo": tiempo_jugado,
-            "movimientos": self.movimientos
-        }
+        conn = connect_db()
+        cursor = conn.cursor()
+
+        # Insertar los resultados del juego en la nueva tabla resultados_partida
+        cursor.execute("""
+            INSERT INTO resultados_partida (id_usuario, nombre_usuario, edad, distancia, puntos, tiempo, movimientos) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (self.usuario_id, self.usuario_nombre, self.edad, self.distancia, self.puntos, tiempo_jugado, self.movimientos))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
 
     def mostrar_datos_finales(self):
         tiempo_jugado = time.time() - self.tiempo_inicio
         self.canvas.create_text(ANCHO // 2, ALTO // 2, text="¡Fin del juego!", 
                                 fill="red", font=("Arial", 24))
         self.canvas.create_text(ANCHO // 2, ALTO // 2 + 30, 
-                                text=f"Jugador: {self.usuario}", fill="black", font=("Arial", 14))
+                                text=f"Jugador: {self.usuario_nombre}", fill="black", font=("Arial", 14))
         self.canvas.create_text(ANCHO // 2, ALTO // 2 + 50, 
-                                text=f"Distancia: {self.distancia}", fill="black", font=("Arial", 14))
+                                text=f"Edad: {self.edad}", fill="black", font=("Arial", 14))
         self.canvas.create_text(ANCHO // 2, ALTO // 2 + 70, 
-                                text=f"Puntos: {self.puntos}", fill="black", font=("Arial", 14))
+                                text=f"Distancia: {self.distancia}", fill="black", font=("Arial", 14))
         self.canvas.create_text(ANCHO // 2, ALTO // 2 + 90, 
-                                text=f"Tiempo: {tiempo_jugado:.2f} segundos", fill="black", font=("Arial", 14))
+                                text=f"Puntos: {self.puntos}", fill="black", font=("Arial", 14))
         self.canvas.create_text(ANCHO // 2, ALTO // 2 + 110, 
+                                text=f"Tiempo: {tiempo_jugado:.2f} segundos", fill="black", font=("Arial", 14))
+        self.canvas.create_text(ANCHO // 2, ALTO // 2 + 130, 
                                 text=f"Movimientos: {self.movimientos}", fill="black", font=("Arial", 14))
 
-        # Pasar al siguiente jugador si hay más
-        self.root.after(3000, self.cambiar_jugador)
+        tk.Button(self.root, text="Reiniciar Juego", command=self.reiniciar_juego).pack(pady=20)
 
-    def cambiar_jugador(self):
+    def reiniciar_juego(self):
         self.root.destroy()
-        siguiente_indice = (self.indice_actual + 1) % len(self.usuarios)
-        if siguiente_indice > 0:
-            iniciar_juego(self.usuarios, siguiente_indice, self.resultados)
+        iniciar_juego(self.usuario_id, self.usuario_nombre, self.edad, self.resultados)
+
+    # Función para agregar los botones de control táctil
+    def agregar_botones(self):
+        frame_botones = tk.Frame(self.root)
+        frame_botones.pack(side=tk.BOTTOM, pady=10)
+
+        boton_izquierda = tk.Button(frame_botones, text="Izquierda", command=self.mover_izquierda, width=10)
+        boton_izquierda.pack(side=tk.LEFT, padx=20)
+
+        boton_derecha = tk.Button(frame_botones, text="Derecha", command=self.mover_derecha, width=10)
+        boton_derecha.pack(side=tk.RIGHT, padx=20)
+
+
+# Registro de usuario
+def registrar_usuario():
+    registro = tk.Tk()
+    registro.title("Registro de Usuario")
+
+    tk.Label(registro, text="Nombre:").pack(pady=5)
+    nombre_entry = tk.Entry(registro)
+    nombre_entry.pack(pady=5)
+
+    tk.Label(registro, text="Edad:").pack(pady=5)
+    edad_entry = tk.Entry(registro)
+    edad_entry.pack(pady=5)
+
+    tk.Label(registro, text="Correo:").pack(pady=5)
+    correo_entry = tk.Entry(registro)
+    correo_entry.pack(pady=5)
+
+    tk.Label(registro, text="Contraseña:").pack(pady=5)
+    password_entry = tk.Entry(registro, show="*")
+    password_entry.pack(pady=5)
+
+    tk.Label(registro, text="Repetir Contraseña:").pack(pady=5)
+    repeat_password_entry = tk.Entry(registro, show="*")
+    repeat_password_entry.pack(pady=5)
+
+    def registrar():
+        nombre = nombre_entry.get()
+        edad = edad_entry.get()
+        correo = correo_entry.get()
+        contraseña = password_entry.get()
+        repetir_contraseña = repeat_password_entry.get()
+
+        if nombre and edad.isdigit() and correo and contraseña and repetir_contraseña:
+            if contraseña == repetir_contraseña:
+                conn = connect_db()
+                cursor = conn.cursor()
+
+                try:
+                    cursor.execute("INSERT INTO usuarios (nombre, edad, correo, contraseña) VALUES (%s, %s, %s, %s)", 
+                                   (nombre, edad, correo, contraseña))
+                    conn.commit()
+                    print(f"Usuario {nombre} registrado con éxito.")
+                    registro.destroy()
+                    iniciar_sesion()
+                except mysql.connector.Error as err:
+                    print(f"Error: {err}")
+                finally:
+                    cursor.close()
+                    conn.close()
+            else:
+                print("Las contraseñas no coinciden.")
         else:
-            mostrar_resultados_finales(self.resultados)
+            print("Por favor, complete todos los campos correctamente.")
 
+    tk.Button(registro, text="Registrar", command=registrar).pack(pady=20)
+    registro.mainloop()
 
-def ventana_inicio():
-    inicio = tk.Tk()
-    inicio.title("Inicio de Juego - 4 Jugadores")
+# Inicio de sesión
+def iniciar_sesion():
+    sesion = tk.Tk()
+    sesion.title("Iniciar Sesión")
 
-    nombres = []
-    for i in range(4):
-        tk.Label(inicio, text=f"Ingrese el nombre del Jugador {i+1}:").pack(pady=5)
-        nombre_entry = tk.Entry(inicio)
-        nombre_entry.pack(pady=5)
-        nombres.append(nombre_entry)
+    tk.Label(sesion, text="Correo:").pack(pady=5)
+    correo_entry = tk.Entry(sesion)
+    correo_entry.pack(pady=5)
+
+    tk.Label(sesion, text="Contraseña:").pack(pady=5)
+    password_entry = tk.Entry(sesion, show="*")
+    password_entry.pack(pady=5)
 
     def iniciar():
-        usuarios = [entry.get() for entry in nombres if entry.get()]
-        if len(usuarios) == 4:  # Verificar que los 4 nombres sean ingresados
-            inicio.destroy()
-            iniciar_juego(usuarios, 0, {})
+        correo = correo_entry.get()
+        contraseña = password_entry.get()
 
-    tk.Button(inicio, text="Iniciar Juego", command=iniciar).pack(pady=20)
-    inicio.mainloop()
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, nombre, edad FROM usuarios WHERE correo = %s AND contraseña = %s", (correo, contraseña))
+        usuario = cursor.fetchone()
 
+        if usuario:
+            print(f"Bienvenido {usuario[1]}!")
+            sesion.destroy()
+            mostrar_menu_inicio(usuario[0], usuario[1], usuario[2])
+        else:
+            print("Correo o contraseña incorrectos.")
+        
+        cursor.close()
+        conn.close()
 
-def iniciar_juego(usuarios, indice_actual, resultados):
+    tk.Button(sesion, text="Iniciar Sesión", command=iniciar).pack(pady=10)
+    tk.Button(sesion, text="Registrar Usuario", command=lambda: [sesion.destroy(), registrar_usuario()]).pack(pady=10)
+
+    sesion.mainloop()
+
+# Menú de inicio del juego
+def mostrar_menu_inicio(usuario_id, nombre, edad):
+    menu = tk.Tk()
+    menu.title("Menú del Juego")
+
+    tk.Label(menu, text=f"Bienvenido {nombre}").pack(pady=10)
+    tk.Button(menu, text="Iniciar Juego", command=lambda: iniciar_juego(usuario_id, nombre, edad, {})).pack(pady=10)
+
+    menu.mainloop()
+
+def iniciar_juego(usuario_id, nombre, edad, resultados):
     root = tk.Tk()
-    root.title(f"Juego de Autos - Jugador: {usuarios[indice_actual]}")
-    juego = JuegoAutos(root, usuarios[indice_actual], usuarios, indice_actual, resultados)
+    root.title(f"Juego de Autos - Jugador: {nombre}")
+    juego = JuegoAutos(root, usuario_id, nombre, edad, resultados)
     root.mainloop()
 
-
-def mostrar_resultados_finales(resultados):
-    resumen = tk.Tk()
-    resumen.title("Resultados Finales")
-
-    tk.Label(resumen, text="Resultados Finales", font=("Arial", 16)).pack(pady=10)
-    for usuario, data in resultados.items():
-        tk.Label(resumen, text=f"Jugador: {usuario}").pack(pady=5)
-        tk.Label(resumen, text=f"Distancia: {data['distancia']}").pack(pady=5)
-        tk.Label(resumen, text=f"Puntos: {data['puntos']}").pack(pady=5)
-        tk.Label(resumen, text=f"Tiempo: {data['tiempo']:.2f} segundos").pack(pady=5)
-        tk.Label(resumen, text=f"Movimientos: {data['movimientos']}").pack(pady=5)
-
-    tk.Button(resumen, text="Cerrar", command=resumen.destroy).pack(pady=20)
-    resumen.mainloop()
-
-
-# Iniciar el proceso con la ventana de creación de 4 usuarios
-ventana_inicio()
+# Iniciar con la pantalla de inicio de sesión
+iniciar_sesion()
