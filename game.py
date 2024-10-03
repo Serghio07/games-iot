@@ -2,6 +2,7 @@ import tkinter as tk
 import random
 import time
 import mysql.connector
+import requests
 
 # Configuración del juego
 ANCHO = 400
@@ -42,6 +43,8 @@ class JuegoAutos:
         self.distancia = 0
         self.velocidad_obstaculos = VELOCIDAD_OBSTACULOS_INICIAL
         self.tiempo_inicio = time.time()
+        self.autos_esquivados = 0  # Autos esquivados
+        self.intentos = 0  # Intentos (colisiones)
 
         # Crear auto
         self.crear_auto()
@@ -94,8 +97,10 @@ class JuegoAutos:
                 self.obstaculos.remove(obstaculo)
                 self.canvas.delete(obstaculo)
                 self.puntos += 1
+                self.autos_esquivados += 1  # Incrementar autos esquivados
             elif self.colision(coords):
                 self.jugando = False
+                self.intentos += 1  # Incrementar intentos al colisionar
 
     def colision(self, coords_obstaculo):
         coords_auto = self.canvas.coords(self.auto)
@@ -120,6 +125,8 @@ class JuegoAutos:
                 self.velocidad_obstaculos += 1
 
             self.mostrar_datos()
+            # Enviar datos al servidor Flask en cada actualización de pantalla
+            self.enviar_datos_flask()
             self.root.after(50, self.actualizar_pantalla)
         else:
             self.registrar_resultado()
@@ -134,20 +141,65 @@ class JuegoAutos:
         self.canvas.create_text(10, 50, anchor="nw", text=f"Movimientos: {self.movimientos}", 
                                 fill="black", font=("Arial", 12), tags="datos")
 
+    def enviar_datos_flask(self):
+        # Datos a enviar en tiempo real
+        data = {
+            'id_usuario': self.usuario_id,
+            'nombre_usuario': self.usuario_nombre,
+            'edad': self.edad,
+            'distancia': self.distancia,
+            'puntos': self.puntos,
+            'tiempo': time.time() - self.tiempo_inicio,
+            'movimientos': self.movimientos,
+            'autos_esquivados': self.autos_esquivados,
+            'intentos': self.intentos
+        }
+
+        try:
+            response = requests.post('http://localhost:5000/recibir_datos', json=data)
+            if response.status_code == 200:
+                print("Datos enviados correctamente a Flask")
+            else:
+                print(f"Error al enviar datos a Flask: {response.status_code}")
+        except Exception as e:
+            print(f"Error al conectar con el servidor Flask: {e}")
+
     def registrar_resultado(self):
         tiempo_jugado = time.time() - self.tiempo_inicio
         conn = connect_db()
         cursor = conn.cursor()
 
-        # Insertar los resultados del juego en la nueva tabla resultados_partida
+        # Insertar los resultados del juego en la base de datos
         cursor.execute("""
-            INSERT INTO resultados_partida (id_usuario, nombre_usuario, edad, distancia, puntos, tiempo, movimientos) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (self.usuario_id, self.usuario_nombre, self.edad, self.distancia, self.puntos, tiempo_jugado, self.movimientos))
+            INSERT INTO resultados_partida (id_usuario, nombre_usuario, edad, distancia, puntos, tiempo, movimientos, autos_esquivados, intentos) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (self.usuario_id, self.usuario_nombre, self.edad, self.distancia, self.puntos, tiempo_jugado, self.movimientos, self.autos_esquivados, self.intentos))
 
         conn.commit()
         cursor.close()
         conn.close()
+
+        # Enviar los datos a Flask
+        data = {
+            'id_usuario': self.usuario_id,
+            'nombre_usuario': self.usuario_nombre,
+            'edad': self.edad,
+            'distancia': self.distancia,
+            'puntos': self.puntos,
+            'tiempo': tiempo_jugado,
+            'movimientos': self.movimientos,
+            'autos_esquivados': self.autos_esquivados,
+            'intentos': self.intentos
+        }
+
+        try:
+            response = requests.post('http://localhost:5000/recibir_datos', json=data)
+            if response.status_code == 200:
+                print("Datos enviados correctamente a Flask")
+            else:
+                print(f"Error al enviar datos a Flask: {response.status_code}")
+        except Exception as e:
+            print(f"Error al conectar con el servidor Flask: {e}")
 
     def mostrar_datos_finales(self):
         tiempo_jugado = time.time() - self.tiempo_inicio
@@ -165,6 +217,10 @@ class JuegoAutos:
                                 text=f"Tiempo: {tiempo_jugado:.2f} segundos", fill="black", font=("Arial", 14))
         self.canvas.create_text(ANCHO // 2, ALTO // 2 + 130, 
                                 text=f"Movimientos: {self.movimientos}", fill="black", font=("Arial", 14))
+        self.canvas.create_text(ANCHO // 2, ALTO // 2 + 150, 
+                                text=f"Autos esquivados: {self.autos_esquivados}", fill="black", font=("Arial", 14))
+        self.canvas.create_text(ANCHO // 2, ALTO // 2 + 170, 
+                                text=f"Intentos (colisiones): {self.intentos}", fill="black", font=("Arial", 14))
 
         tk.Button(self.root, text="Reiniciar Juego", command=self.reiniciar_juego).pack(pady=20)
 
@@ -172,7 +228,6 @@ class JuegoAutos:
         self.root.destroy()
         iniciar_juego(self.usuario_id, self.usuario_nombre, self.edad, self.resultados)
 
-    # Función para agregar los botones de control táctil
     def agregar_botones(self):
         frame_botones = tk.Frame(self.root)
         frame_botones.pack(side=tk.BOTTOM, pady=10)

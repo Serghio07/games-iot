@@ -1,8 +1,3 @@
-ID Partida,ID Usuario,Nombre Usuario,Edad,Distancia,Puntos,Tiempo,Movimientos,Fecha
-1,3,Sergio,21,1023,0,9.48192,45,2024-10-02 14:56:18
-2,3,Sergio,21,1148,0,10.396,44,2024-10-02 14:57:21
-3,3,Sergio,21,1732,10,14.981,18,2024-10-02 15:34:11
-4,3,Sergio,21,1164,0,10.508,17,2024-10-02 16:21:55
-5,3,Sergio,21,3791,30,26.7496,34,2024-10-02 16:22:25
-7,3,Sergio,21,1172,0,11.0031,14,2024-10-02 17:47:13
-8,3,Sergio,21,2795,27,21.3189,22,2024-10-02 18:08:42
+ID Partida,ID Usuario,Nombre Usuario,Edad,Distancia,Puntos,Tiempo,Movimientos,Autos Esquivados,Intentos,Fecha y Hora Generación
+1,3,Sergio,21,1180,0,10.4078,17,0,1,2024-10-03 03:07:34
+2,3,Sergio,21,1444,3,12.2294,31,3,1,2024-10-03 03:07:34
