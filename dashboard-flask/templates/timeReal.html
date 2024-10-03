@@ -1,37 +1,35 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard del Juego</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css">
+    <title>Dashboard de Jugadores</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <div class="ui container">
-        <h2 class="ui header">Dashboard del Juego de Autos</h2>
+    <h1>Estadísticas de Jugadores en Tiempo Real</h1>
 
-        <table class="ui celled table">
-            <thead>
-                <tr>
-                    <th>Nombre del Jugador</th>
-                    <th>Puntos Promedio</th>
-                    <th>Tiempo Promedio Jugado (segundos)</th>
-                    <th>Máxima Distancia Recorrida</th>
-                    <th>Total de Partidas Jugadas</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for stat in stats %}
-                <tr>
-                    <td>{{ stat[0] }}</td>
-                    <td>{{ stat[1] | round(2) }}</td>
-                    <td>{{ stat[2] | round(2) }}</td>
-                    <td>{{ stat[3] }}</td>
-                    <td>{{ stat[4] }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <!-- Contenedor para el gráfico -->
+    <div id="grafico" style="width: 800px; height: 600px;"></div>
+
+    <script>
+        function actualizarGrafico() {
+            $.ajax({
+                url: '/datos_grafico',
+                method: 'GET',
+                success: function(data) {
+                    var graficoJson = JSON.parse(data);
+                    Plotly.react('grafico', graficoJson.data, graficoJson.layout);
+                }
+            });
+        }
+
+        // Actualizar los datos del gráfico cada 5 segundos
+        setInterval(actualizarGrafico, 1000);
+
+        // Cargar los datos del gráfico por primera vez
+        actualizarGrafico();
+    </script>
 </body>
 </html>

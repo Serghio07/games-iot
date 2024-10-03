@@ -24,19 +24,22 @@ def crear_usuario():
     contraseña = entry_contraseña.get()
 
     if nombre and edad.isdigit() and correo and contraseña:
-        conn = connect_db()
-        cursor = conn.cursor()
-        try:
-            cursor.execute("INSERT INTO usuarios (nombre, edad, correo, contraseña) VALUES (%s, %s, %s, %s)", 
-                           (nombre, edad, correo, contraseña))
-            conn.commit()
-            messagebox.showinfo("Éxito", "Usuario creado con éxito.")
-            limpiar_campos()
-        except mysql.connector.Error as err:
-            messagebox.showerror("Error", f"Error al crear usuario: {err}")
-        finally:
-            cursor.close()
-            conn.close()
+        if "@" in correo:  # Verificación básica del formato de correo
+            conn = connect_db()
+            cursor = conn.cursor()
+            try:
+                cursor.execute("INSERT INTO usuarios (nombre, edad, correo, contraseña) VALUES (%s, %s, %s, %s)", 
+                               (nombre, edad, correo, contraseña))
+                conn.commit()
+                messagebox.showinfo("Éxito", "Usuario creado con éxito.")
+                limpiar_campos()
+            except mysql.connector.Error as err:
+                messagebox.showerror("Error", f"Error al crear usuario: {err}")
+            finally:
+                cursor.close()
+                conn.close()
+        else:
+            messagebox.showwarning("Advertencia", "Por favor ingrese un correo válido.")
     else:
         messagebox.showwarning("Advertencia", "Todos los campos son obligatorios y la edad debe ser un número.")
 
@@ -77,22 +80,25 @@ def actualizar_usuario():
     contraseña = entry_contraseña.get()
 
     if usuario_id.isdigit() and nombre and edad.isdigit() and correo and contraseña:
-        conn = connect_db()
-        cursor = conn.cursor()
-        try:
-            cursor.execute("UPDATE usuarios SET nombre = %s, edad = %s, correo = %s, contraseña = %s WHERE id = %s", 
-                           (nombre, edad, correo, contraseña, usuario_id))
-            conn.commit()
-            if cursor.rowcount > 0:
-                messagebox.showinfo("Éxito", "Usuario actualizado con éxito.")
-                limpiar_campos()
-            else:
-                messagebox.showwarning("Advertencia", "Usuario no encontrado.")
-        except mysql.connector.Error as err:
-            messagebox.showerror("Error", f"Error al actualizar usuario: {err}")
-        finally:
-            cursor.close()
-            conn.close()
+        if "@" in correo:  # Verificación básica del formato de correo
+            conn = connect_db()
+            cursor = conn.cursor()
+            try:
+                cursor.execute("UPDATE usuarios SET nombre = %s, edad = %s, correo = %s, contraseña = %s WHERE id = %s", 
+                               (nombre, edad, correo, contraseña, usuario_id))
+                conn.commit()
+                if cursor.rowcount > 0:
+                    messagebox.showinfo("Éxito", "Usuario actualizado con éxito.")
+                    limpiar_campos()
+                else:
+                    messagebox.showwarning("Advertencia", "Usuario no encontrado.")
+            except mysql.connector.Error as err:
+                messagebox.showerror("Error", f"Error al actualizar usuario: {err}")
+            finally:
+                cursor.close()
+                conn.close()
+        else:
+            messagebox.showwarning("Advertencia", "Por favor ingrese un correo válido.")
     else:
         messagebox.showwarning("Advertencia", "Todos los campos son obligatorios y deben ser válidos.")
 
